@@ -1,0 +1,86 @@
+---
+title: "Course Project Prediction"
+author: "Romain Frelot"
+date: "03/09/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. We made sure that all participants could easily simulate the mistakes in a safe and controlled manner by using a relatively light dumbbell (1.25kg).
+
+First, I would like to say thank you to this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. They have been very generous in allowing their data to be used for this kind of assignment.
+
+The purpose of this project is to explore this dataset to provide a prediction model to know from the accelerometers if the exercice is done correctly (classe A)
+
+## Exploratory Data
+```{r}
+library(caret)
+library(dplyr)
+library(AppliedPredictiveModeling)
+
+training<-read.csv("C:/Users/Romain/Desktop/datasciencecoursera/Machine Learning/pml-training.csv")
+testingProject<-read.csv("C:/Users/Romain/Desktop/datasciencecoursera/Machine Learning/pml-testing.csv")
+
+dim(training)
+str(training)
+```
+There is lot of data here. First we reduce the data frame to keep only the data that we need.
+
+```{r}
+training$classe<-as.factor(training$classe)
+training <- Filter(function(x)!all(is.na(x) || x == ""), training)
+training<-training[,-(1:7)]
+df_new <- training %>% select(-contains("_x"))      
+df_new <- df_new %>% select(-contains("_y"))  
+df_new <- df_new %>% select(-contains("_z"))
+dim(df_new)
+```
+We have reduce the column from 160 to 17. It will be easier to process the data.
+
+## Processing data
+
+```{r}
+set.seed(1234)
+inTrain = createDataPartition(df_new$classe, p = 1/20)[[1]]
+
+training = df_new[ inTrain,]
+testing = df_new[-inTrain,]
+
+modfit_rf<-train(classe~.,data=training,method="rf")
+pred_rf<-predict(modfit_rf,testing)
+confusionMatrix(pred_rf,testing$classe)$overall
+
+modfit_gbm<-train(classe~.,data=training,method="gbm")
+pred_gbm<-predict(modfit_gbm,testing)
+confusionMatrix(pred_gbm,testing$classe)$overall
+
+modfit_lda<-train(classe~.,data=training,method="lda")
+pred_lda<-predict(modfit_lda,testing)
+confusionMatrix(pred_lda,testing$classe)$overall
+```
+
+##Conclusion
+
+The model I choose is the model with randomforest. It give me a great accuracy 0.96.
+For the .Rmd did a partition of 1/20 because it take time to compute. But for my 
+Course Project Prediction quizz i use a 1/5 partition that give me a better accuracy.
+
+I tried also this model, you can try also but it take time to compute and it not 
+giving me a better accuracy :
+
+predDF<-data.frame(pred_rf,pred_gbm,pred_lda,classe=testing$classe)
+combModFit<-train(classe~.,data=predDF,method="rf")
+predComb<-predict(combModFit,testing)
+confusionMatrix(predComb,testing$classe)$overall
+
+predDF2<-data.frame(pred_rf,pred_gbm,classe=testing$classe)
+combModFit2<-train(classe~.,data=predDF2,method="rf")
+predComb2<-predict(combModFit2,testing)
+confusionMatrix(predComb2,testing$classe)$overall
